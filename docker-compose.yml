@@ -1,30 +1,11 @@
-version: "3.8"
-
 services:
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:4.1-management
     hostname: rabbitmq
     ports:
       - "5672:5672"     # AMQP
       - "15672:15672"   # Web UI -> http://localhost:15672  (user/pass: guest/guest)
-
-  # one-shot container that publishes 10 tasks and exits
-  producer:
-    build: ./producer
-    depends_on:
-      - rabbitmq
-    environment:
-      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
-
-  # stateless worker image – we scale it at runtime
-  worker:
-    build: ./worker
-    depends_on:
-      - rabbitmq
-    environment:
-      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
-
-  # API REST service for booking management
+  # API REST para administracion de citas
   api-service:
     build: ./api-service
     depends_on:
@@ -40,7 +21,7 @@ services:
       - ./api-service:/usr/src/app
       - /usr/src/app/node_modules
 
-  # Booking confirmation worker
+  # Worker de confirmacion de citas
   booking-worker:
     build: ./booking-worker
     depends_on:
@@ -54,7 +35,7 @@ services:
       - RETRY_ATTEMPTS=3
     restart: always
 
-  # Notification worker for sending emails, etc
+  # Notification worker para enviar correos, etc
   notification-worker:
     build: ./notification-worker
     depends_on:
@@ -63,7 +44,7 @@ services:
       - AMQP_URL=amqp://guest:guest@rabbitmq:5672
     restart: always
 
-  # MongoDB database for storing bookings
+  # MongoDB base de datos para almacenar citas
   database:
     image: mongo:latest
     ports:
