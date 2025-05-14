@@ -1,117 +1,73 @@
 Alex Hernandez
+# Sistema de reservas para clínica médica online
 
-El sistema está compuesto por los siguientes componentes
+Sistema para gestionar citas médicas con procesamiento asíncrono y notificaciones. Usa RabbitMQ para la comunicación entre servicios.
 
-### Servicios
+## Componentes del sistema
 
-1. **API REST (api-service)**
-   - Proporciona endpoints para crear y consultar reservas
-   - Almacena las reservas en MongoDB
-   - Publica mensajes a RabbitMQ para procesamiento asíncrono
-  
-![alt text](images/image.png)
+API REST: Node.js + Express + MongoDB
+Workers: Procesamiento de citas + Notificaciones
+RabbitMQ: Colas de trabajo y pub/sub
+MongoDB: Almacenamiento de citas
 
-2. **Worker de Procesamiento (booking-worker)**
-   - Consume mensajes de la cola `booking_requests`
-   - Simula la verificación de disponibilidad médica (2-5 segundos)
-   - Actualiza el estado de la reserva (confirmed/rejected)
-   - Publica notificaciones de cambio de estado
+![diagrama](images/image.png)
 
-3. **Worker de Notificaciones (notification-worker)**
-   - Suscrito al exchange `booking_notifications`
-   - Simula el envío de emails a los pacientes
-   - Procesa las notificaciones de cambios de estado
+## API Endpoints
 
-4. **Base de Datos (MongoDB)**
-   - Almacena información de las reservas
-   - Mantiene el estado actual de cada reserva
+POST /book: Crear reserva nueva (datos paciente + horario)
+GET /booking/{id}: Consultar estado (pending/confirmed/rejected)
+GET /bookings: Ver todas las reservas
 
-5. **RabbitMQ**
-   - Gestiona colas de trabajo
-   - Implementa patrón de publicación/suscripción para notificaciones
+## Colas y workers
 
-## Decisiones Arquitectónicas
+El worker de procesamiento agarra las citas de la cola booking_requests, simula la confirmación con un delay de 2-5 segundos, y actualiza el estado en la BD. Si hay errores, reintenta máximo 3 veces.
 
-### 1. Colas vs. Exchange
+El worker de notificaciones escucha del exchange booking_notifications y simula enviar un email al paciente.
 
-- **Cola `booking_requests`**: Utiliza patrón Work Queues para distribuir el procesamiento de reservas entre múltiples workers.
-- **Exchange `booking_notifications` (fanout)**: Permite que múltiples servicios (email, SMS, etc.) reciban la misma notificación sin duplicar el procesamiento.
+## Decisiones de diseño
 
-### 2. Política de Reintentos
+MongoDB: Elegido por su facilidad de integración y esquema flexible.
+Exchange fanout: Para notificaciones porque simplifica añadir nuevos servicios de notificación.
+Mensajes durables: Garantizan que no se pierdan reservas si se cae RabbitMQ.
+Cola de reintentos: Con TTL de 10s cuando falla el procesamiento.
 
-- **Workers**: Implementación de reintentos con backoff exponencial:
-  - Cola de reintentos `booking_retry` con dead-letter exchange
-  - Máximo 3 intentos configurables por variable de entorno
-  - TTL de 10 segundos antes de reintento
+Los workers tienen restart: always en Docker para que se reinicien si se caen. Los mensajes usan ack manual para garantizar procesamiento.
 
-- **Conexión a RabbitMQ**:
-  - Mecanismo de reconexión automática con reintentos
-  - Manejo de eventos de desconexión
+## Ejecutar el sistema
 
-### 3. Almacenamiento de Estado
-
-- **MongoDB**: Elegido por:
-  - Esquema flexible para evolución del modelo de datos
-  - Escalabilidad horizontal
-  - Operaciones atómicas para actualizar estados
-  - Persistencia para garantizar consistencia en caso de fallos
-
-### 4. Tolerancia a Fallos
-
-- **Mensajes Durables**: Los mensajes persisten incluso si RabbitMQ se reinicia
-- **Confirmaciones Manuales**: Garantizan que un mensaje se procesa correctamente antes de eliminarlo
-- **Reconexión Automática**: Todos los servicios implementan reconexión automática
-- **Volúmenes Persistentes**: Para mantener los datos en caso de reinicio de contenedores
-- **Restart: Always**: Configuración de Docker para reiniciar los contenedores automáticamente
-
-## API REST
-
-### Endpoints
-
-1. **POST /book**
-   - Crear una nueva reserva
-   - Body: `{ "patientName": "Nombre", "patientEmail": "correo@ejemplo.com", "date": "2023-05-21T14:30:00Z" }`
-   - Respuesta: `{ "booking": { "id": "...", "status": "pending", ... } }`
-
-2. **GET /booking/{id}**
-   - Consultar estado de una reserva
-   - Respuesta: `{ "id": "...", "status": "pending|confirmed|rejected", ... }`
-3. **GET /bookings/**
-   - Consulta todas las reservas
-   - Respuesta: `{ "id": "...", "status": "pending|confirmed|rejected", ... }`
-
-## Ejecución del Sistema
-
-```bash
-# Iniciar todos los servicios
+```
 docker-compose up -d
 ```
 
-## Pruebas del Sistema
-
-1. Crear una reserva:
-```bash
-curl -X POST http://localhost:3000/book \
-  -H "Content-Type: application/json" \
-  -d '{"patientName":"Juan Pérez","patientEmail":"juan@example.com","date":"2023-06-15T10:30:00Z"}'
+Escalar workers:
+```
+docker-compose up -d --scale booking-worker=3
 ```
 
-1. Consultar estado:
-```bash
+## Pruebas
+
+Crear reserva:
+```
+curl -X POST http://localhost:3000/book -H "Content-Type: application/json" -d '{"patientName":"Juan Pérez","patientEmail":"juan@example.com","date":"2023-06-15T10:30:00Z"}'
+```
+
+Ver todas las reservas:
+```
+curl http://localhost:3000/bookings
+```
+
+Ver estado de una reserva:
+```
 curl http://localhost:3000/booking/{id}
 ```
 
-```bash
-curl http://localhost:3000/bookings/
-```
+## Logs
 
-logs:
+Booking worker:
+![logs worker](images/image-1.png)
 
-booking worker:
-![alt text](images/image-1.png)
+Notification worker:
+![logs notificaciones](images/image-2.png)
 
-notification worker:
-![alt text](images/image-2.png)
-
-api service:
-![alt text](images/image-3.png)
+API service:
+![logs api](images/image-3.png)
