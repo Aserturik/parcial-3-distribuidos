@@ -1,8 +1,4 @@
-# Sistema de Gestión de Citas Médicas
-
-Este proyecto implementa un sistema distribuido para la gestión de citas médicas en una clínica online, utilizando RabbitMQ para procesamiento asíncrono de solicitudes y notificaciones.
-
-## Arquitectura del Sistema
+Alex Hernandez
 
 El sistema está compuesto por los siguientes componentes
 
@@ -12,6 +8,8 @@ El sistema está compuesto por los siguientes componentes
    - Proporciona endpoints para crear y consultar reservas
    - Almacena las reservas en MongoDB
    - Publica mensajes a RabbitMQ para procesamiento asíncrono
+  
+![alt text](images/image.png)
 
 2. **Worker de Procesamiento (booking-worker)**
    - Consume mensajes de la cola `booking_requests`
@@ -106,3 +104,14 @@ curl http://localhost:3000/booking/{id}
 ```bash
 curl http://localhost:3000/bookings/
 ```
+
+logs:
+
+booking worker:
+![alt text](images/image-1.png)
+
+notification worker:
+![alt text](images/image-2.png)
+
+api service:
+![alt text](images/image-3.png)
