@@ -1,0 +1,12 @@
+{
+  "name": "notification-worker",
+  "version": "1.0.0",
+  "description": "Worker para enviar notificaciones de reservas médicas",
+  "main": "src/notificationWorker.js",
+  "scripts": {
+    "start": "node src/notificationWorker.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3"
+  }
+}

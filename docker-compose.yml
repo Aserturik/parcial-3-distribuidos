@@ -1,0 +1,75 @@
+version: "3.8"
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"     # AMQP
+      - "15672:15672"   # Web UI -> http://localhost:15672  (user/pass: guest/guest)
+
+  # one-shot container that publishes 10 tasks and exits
+  producer:
+    build: ./producer
+    depends_on:
+      - rabbitmq
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+
+  # stateless worker image – we scale it at runtime
+  worker:
+    build: ./worker
+    depends_on:
+      - rabbitmq
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+
+  # API REST service for booking management
+  api-service:
+    build: ./api-service
+    depends_on:
+      - rabbitmq
+      - database
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+      - MONGODB_URI=mongodb://database:27017/clinic
+      - PORT=3000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./api-service:/usr/src/app
+      - /usr/src/app/node_modules
+
+  # Booking confirmation worker
+  booking-worker:
+    build: ./booking-worker
+    depends_on:
+      - rabbitmq
+      - database
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+      - MONGODB_URI=mongodb://database:27017/clinic
+      - PROCESS_DELAY_MIN=2000
+      - PROCESS_DELAY_MAX=5000
+      - RETRY_ATTEMPTS=3
+    restart: always
+
+  # Notification worker for sending emails, etc
+  notification-worker:
+    build: ./notification-worker
+    depends_on:
+      - rabbitmq
+    environment:
+      - AMQP_URL=amqp://guest:guest@rabbitmq:5672
+    restart: always
+
+  # MongoDB database for storing bookings
+  database:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - db-data:/data/db
+
+volumes:
+  db-data:

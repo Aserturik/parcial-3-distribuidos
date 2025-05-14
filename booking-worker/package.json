@@ -1,0 +1,13 @@
+{
+  "name": "booking-worker",
+  "version": "1.0.0",
+  "description": "Worker para confirmar reservas médicas",
+  "main": "src/worker.js",
+  "scripts": {
+    "start": "node src/worker.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "mongoose": "^7.5.0"
+  }
+}
