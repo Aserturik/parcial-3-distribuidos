@@ -46,7 +46,7 @@ El sistema está compuesto por los siguientes componentes
   - Máximo 3 intentos configurables por variable de entorno
   - TTL de 10 segundos antes de reintento
 
-- **Conexión a RabbitMQ**: 
+- **Conexión a RabbitMQ**:
   - Mecanismo de reconexión automática con reintentos
   - Manejo de eventos de desconexión
 
@@ -98,7 +98,7 @@ curl -X POST http://localhost:3000/book \
   -d '{"patientName":"Juan Pérez","patientEmail":"juan@example.com","date":"2023-06-15T10:30:00Z"}'
 ```
 
-2. Consultar estado:
+1. Consultar estado:
 ```bash
 curl http://localhost:3000/booking/{id}
 ```
@@ -106,4 +106,3 @@ curl http://localhost:3000/booking/{id}
 ```bash
 curl http://localhost:3000/bookings/
 ```
-
